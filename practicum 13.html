@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Bridge Task Manager</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f2f5f9;
+      color: #243b53;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 22px 5%;
+      color: white;
+      background: #17385f;
+    }
+
+    header h1 { margin: 0; }
+
+    main {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 18px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 18px;
+      padding: 14px;
+      background: white;
+      border-radius: 8px;
+    }
+
+    input, select, button {
+      padding: 10px;
+      border: 1px solid #bcccdc;
+      border-radius: 5px;
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      color: white;
+      background: #087e8b;
+      cursor: pointer;
+    }
+
+    button:hover { background: #066873; }
+    .toolbar input { flex: 1; min-width: 180px; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .column {
+      min-height: 230px;
+      padding: 12px;
+      background: #e8eef5;
+      border-radius: 8px;
+    }
+
+    .column h2 { margin: 4px 0 12px; font-size: 1.1rem; }
+
+    .task-card {
+      margin: 10px 0;
+      padding: 12px;
+      background: white;
+      border-left: 5px solid #42a5c6;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px #102a4318;
+    }
+
+    .task-card.priority-High { border-left-color: #df5b57; }
+    .task-card.priority-Medium { border-left-color: #e3a642; }
+    .task-card.priority-Low { border-left-color: #42a5c6; }
+
+    .task-card h3 { margin: 0 0 6px; font-size: 1rem; }
+    .task-card p { margin: 5px 0; font-size: .9rem; }
+
+    .tag {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 3px 8px;
+      background: #e4f4ee;
+      color: #23664d;
+      border-radius: 12px;
+      font-size: .8rem;
+    }
+
+    .task-actions { margin-top: 10px; }
+    .task-actions button { margin-right: 5px; padding: 6px 9px; font-size: .85rem; }
+    .task-actions .delete { background: #b42318; }
+    .empty { color: #627d98; font-size: .9rem; }
+
+    dialog {
+      width: min(480px, calc(100% - 24px));
+      border: 0;
+      border-radius: 10px;
+      box-shadow: 0 12px 40px #0004;
+    }
+
+    dialog::backdrop { background: #102a4380; }
+    dialog h2 { margin-top: 0; }
+
+    .form-row { margin: 12px 0; }
+    .form-row label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .form-row input, .form-row select, .form-row textarea { width: 100%; }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .dialog-actions .secondary { background: #627d98; }
+
+    @media (max-width: 800px) {
+      .board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Finance Bridge Task Manager</h1>
+    <p>Organize financial planning work by status and priority.</p>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input id="searchInput" type="search" placeholder="Search tasks..." aria-label="Search tasks">
+
+      <select id="statusFilter" aria-label="Filter tasks by status">
+        <option value="all">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+      </select>
+
+      <button id="newTaskButton" type="button">Add Task</button>
+      <button id="exportButton" type="button">Export CSV</button>
+    </div>
+
+    <section class="board" aria-label="Finance Bridge task board">
+      <section class="column">
+        <h2>Pending <span id="count-Pending">0</span></h2>
+        <div id="list-Pending"></div>
+      </section>
+
+      <section class="column">
+        <h2>In Progress <span id="count-In Progress">0</span></h2>
+        <div id="list-In Progress"></div>
+      </section>
+
+      <section class="column">
+        <h2>Completed <span id="count-Completed">0</span></h2>
+        <div id="list-Completed"></div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="taskDialog">
+    <form id="taskForm">
+      <h2 id="dialogHeading">Add Finance Task</h2>
+      <input type="hidden" name="id">
+
+      <div class="form-row">
+        <label for="taskTitle">Task</label>
+        <input id="taskTitle" name="title" required maxlength="80">
+      </div>
+
+      <div class="form-row">
+        <label for="assignee">Assigned to</label>
+        <input id="assignee" name="assignee" required maxlength="40">
+      </div>
+
+      <div class="form-row">
+        <label for="dueDate">Due date</label>
+        <input id="dueDate" name="dueDate" type="date">
+      </div>
+
+      <div class="form-row">
+        <label for="category">Category</label>
+        <input id="category" name="category" required maxlength="30">
+      </div>
+
+      <div class="form-row">
+        <label for="priority">Priority</label>
+        <select id="priority" name="priority">
+          <option>Low</option>
+          <option selected>Medium</option>
+          <option>High</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="taskStatus">Status</label>
+        <select id="taskStatus" name="status">
+          <option>Pending</option>
+          <option>In Progress</option>
+          <option>Completed</option>
+        </select>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="secondary" id="cancelButton" type="button">Cancel</button>
+        <button type="submit">Save Task</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "financeBridgeTasks";
+    const statuses = ["Pending", "In Progress", "Completed"];
+
+    function dateInDays(days) {
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+
+    const starterTasks = [
+      { id: "f1", title: "Review investment portfolio", assignee: "Asha", dueDate: dateInDays(2), category: "Investments", priority: "High", status: "Pending" },
+      { id: "f2", title: "Prepare retirement plan", assignee: "Ravi", dueDate: dateInDays(4), category: "Planning", priority: "Medium", status: "Pending" },
+      { id: "f3", title: "Analyze tax-saving options", assignee: "Meera", dueDate: dateInDays(1), category: "Tax", priority: "High", status: "In Progress" },
+      { id: "f4", title: "Update client risk profile", assignee: "Dev", dueDate: dateInDays(-1), category: "Client Review", priority: "Low", status: "Completed" }
+    ];
+
+    let tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || starterTasks;
+
+    const dialog = document.getElementById("taskDialog");
+    const form = document.getElementById("taskForm");
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+
+    function saveTasks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      const search = searchInput.value.trim().toLowerCase();
+      const selectedStatus = statusFilter.value;
+
+      statuses.forEach(status => {
+        const list = document.getElementById("list-" + status);
+        list.replaceChildren();
+
+        const filteredTasks = tasks.filter(task => {
+          const matchesStatus = selectedStatus === "all" || task.status === selectedStatus;
+          const searchable = (task.title + " " + task.assignee + " " + task.category).toLowerCase();
+          return task.status === status && matchesStatus && searchable.includes(search);
+        });
+
+        document.getElementById("count-" + status).textContent = filteredTasks.length;
+
+        if (filteredTasks.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "No matching tasks.";
+          list.appendChild(empty);
+        }
+
+        filteredTasks.forEach(task => {
+          const card = document.createElement("article");
+          card.className = "task-card priority-" + task.priority;
+
+          const title = document.createElement("h3");
+          title.textContent = task.title;
+
+          const assignee = document.createElement("p");
+          assignee.textContent = "Assigned to: " + task.assignee;
+
+          const due = document.createElement("p");
+          due.textContent = task.dueDate ? "Due: " + task.dueDate : "No due date";
+
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = task.category + " · " + task.priority + " priority";
+
+          const actions = document.createElement("div");
+          actions.className = "task-actions";
+
+          const editButton = document.createElement("button");
+          editButton.textContent = "Edit";
+          editButton.addEventListener("click", () => editTask(task.id));
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "Delete";
+          deleteButton.className = "delete";
+          deleteButton.addEventListener("click", () => deleteTask(task.id));
+
+          actions.append(editButton, deleteButton);
+          card.append(title, assignee, due, tag, actions);
+          list.appendChild(card);
+        });
+      });
+    }
+
+    function openNewTask() {
+      form.reset();
+      form.elements.namedItem("id").value = "";
+      document.getElementById("dialogHeading").textContent = "Add Finance Task";
+      dialog.showModal();
+    }
+
+    function editTask(id) {
+      const task = tasks.find(item => item.id === id);
+      if (!task) return;
+
+      form.elements.namedItem("id").value = task.id;
+      form.elements.namedItem("title").value = task.title;
+      form.elements.namedItem("assignee").value = task.assignee;
+      form.elements.namedItem("dueDate").value = task.dueDate;
+      form.elements.namedItem("category").value = task.category;
+      form.elements.namedItem("priority").value = task.priority;
+      form.elements.namedItem("status").value = task.status;
+
+      document.getElementById("dialogHeading").textContent = "Edit Finance Task";
+      dialog.showModal();
+    }
+
+    function deleteTask(id) {
+      if (!confirm("Delete this task?")) return;
+      tasks = tasks.filter(task => task.id !== id);
+      saveTasks();
+      renderTasks();
+    }
+
+    document.getElementById("newTaskButton").addEventListener("click", openNewTask);
+    document.getElementById("cancelButton").addEventListener("click", () => dialog.close());
+    searchInput.addEventListener("input", renderTasks);
+    statusFilter.addEventListener("change", renderTasks);
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+
+      const data = new FormData(form);
+      const id = data.get("id") || "f-" + Date.now();
+
+      const task = {
+        id,
+        title: data.get("title").trim(),
+        assignee: data.get("assignee").trim(),
+        dueDate: data.get("dueDate"),
+        category: data.get("category").trim(),
+        priority: data.get("priority"),
+        status: data.get("status")
+      };
+
+      const existingIndex = tasks.findIndex(item => item.id === id);
+      if (existingIndex >= 0) tasks[existingIndex] = task;
+      else tasks.unshift(task);
+
+      saveTasks();
+      renderTasks();
+      dialog.close();
+    });
+
+    document.getElementById("exportButton").addEventListener("click", () => {
+      const rows = [
+        ["Task", "Assignee", "Due Date", "Category", "Priority", "Status"],
+        ...tasks.map(task => [
+          task.title, task.assignee, task.dueDate, task.category, task.priority, task.status
+        ])
+      ];
+
+      const csv = rows
+        .map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      link.download = "finance-bridge-tasks.csv";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    saveTasks();
+    renderTasks();
+  </script>
+</body>
+</html>
